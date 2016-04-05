@@ -28,3 +28,9 @@ ENTRYPOINT ["flowr"]
 CMD ["--help"]
 
 ## END ##
+
+## To build image:
+# cat content of this file to /opt/Dockerfile ; then run following command as root or docker privileged user - last dot is important.
+# cd /opt && docker build -t gmapps/docker_centos_flowr:0.9.2 -t gmapps/docker_centos_flowr:latest .
+# Building image will take a while (30-60 min); upon successful exit, run following from host system to see status of example flowr run:
+# docker run gmapps/docker_centos_flowr:latest status x="~/flowr/runs"
