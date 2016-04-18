@@ -19,10 +19,13 @@ RUN yum update -y && yum install -y \
 	java-1.8.0-openjdk-devel \
 	R
 
-# Install flowr
+# Install flowr & ultraseq
 RUN mkdir -p /opt && cd /opt/ && mkdir -p /usr/share/doc/R-3.2.3/html
 RUN Rscript -e 'install.packages(c("httr", "git2r", "stringr", "dplyr", "tidyr", "devtools", "flowr"), repos = c(CRAN="http://cran.rstudio.com", DRAT="http://sahilseth.github.io/drat"))' && Rscript -e 'library(flowr);setup()'
+# test flowr
 RUN ln -s /root/bin/flowr /usr/bin/flowr && flowr run x=sleep_pipe platform=local execute=TRUE
+# install ultraseq
+RUN Rscript -e 'devtools::install_github("flow-r/ultraseq", subdir = "ultraseq")'
 
 ENTRYPOINT ["flowr"]
 CMD ["--help"]
