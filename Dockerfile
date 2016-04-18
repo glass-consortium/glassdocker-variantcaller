@@ -27,6 +27,7 @@ RUN ln -s /root/bin/flowr /usr/bin/flowr && flowr run x=sleep_pipe platform=loca
 # install ultraseq
 RUN Rscript -e 'devtools::install_github("flow-r/ultraseq", subdir = "ultraseq")'
 
+
 ENTRYPOINT ["flowr"]
 CMD ["--help"]
 
