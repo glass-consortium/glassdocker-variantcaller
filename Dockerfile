@@ -1,40 +1,180 @@
-## dockerfile for wrapping flowr in docker running centos 6.6 ##
+############################################################
+# Dockerfile to build docker image: dyndna/glass_mutect
+############################################################
 
-### https://github.com/flow-r/docker_centos_flowr
+# Set the base image to flowr on centos:6.6
+# Source: https://github.com/flow-r/docker_centos_flowr
 
 FROM centos:6.6
 
 ## For questions, visit https:
-MAINTAINER "Samir B. Amin" <tweet:sbamin>; "Sahil Seth" <tweet:sethsa>
+MAINTAINER "Samir B. Amin" <tweet:sbamin; sbamin.com/contact>
+
+LABEL version="0.9.7" \
+	  mode="in-house beta version" \	
+      description="docker image to run GLASS consortium variant calling pipeline" \
+      contributor1="flowr and ultraseq pipeline by Sahil Seth, tweet: sethsa" \
+      contributor2="variant calling pipeline code by Hoon Kim, tweet: wisekh6" \
+      website="http://glass-consortium.org" \
+      code="http://odin.mdacc.tmc.edu/~rverhaak/resources" \
+      contact="Dr. Roel GW Verhaak http://odin.mdacc.tmc.edu/~rverhaak/contact/ tweet:roelverhaak" \
+      NOTICE="Third party license: Use of GATK and Mutect tools are subject to approval by GATK team at the Broad Institute, Cambridge, MA, USA. This docker image can not be deployed in public prior to getting appropriate licenses from the Broad Institute to use GATK and mutect for use with GLASS consortium related analysis pipelines."
 
 ## Install and update EPEL repository ##
 ### Use HTTP rather than HTTPS: To avoid error like, Cannot retrieve metalink for repository epel.
 
 RUN yum install -y epel-release && sed -i "s/mirrorlist=https/mirrorlist=http/" /etc/yum.repos.d/epel.repo
 RUN yum update -y && yum install -y \
-	sshfs rsync nano screen socat dos2unix \
+	sshfs rsync nano screen socat dos2unix bc \
 	wget curl \
 	zip unzip \
 	openssl098e openssl-devel libcurl-devel libssh2-devel \
 	java-1.8.0-openjdk-devel \
 	R
 
-# Install flowr & ultraseq
-RUN mkdir -p /opt && cd /opt/ && mkdir -p /usr/share/doc/R-3.2.3/html
-RUN Rscript -e 'install.packages(c("httr", "git2r", "stringr", "dplyr", "tidyr", "devtools", "flowr"), repos = c(CRAN="http://cran.rstudio.com", DRAT="http://sahilseth.github.io/drat"))' && Rscript -e 'library(flowr);setup()'
-# test flowr
-RUN ln -s /root/bin/flowr /usr/bin/flowr && flowr run x=sleep_pipe platform=local execute=TRUE
-# install ultraseq
-RUN Rscript -e 'devtools::install_github("flow-r/ultraseq", subdir = "ultraseq")'
+# Install devp tools
+RUN yum groupinstall -y development && yum install -y \
+	zlib-dev xz-libs bzip2-devel ncurses-devel ncurses \
+	sqlite-devel ftp
 
+# Install flowr
+RUN mkdir -p /{opt,scratch} && cd /opt/ && mkdir -p /usr/share/doc/R-3.2.3/html
 
-ENTRYPOINT ["flowr"]
-CMD ["--help"]
+RUN Rscript -e 'install.packages(c("httr", "git2r", "stringr", "dplyr", "tidyr", "devtools", "flowr"), repos = c(CRAN="http://cran.rstudio.com", DRAT="http://sahilseth.github.io/drat"))' && mkdir -p /root/bin && Rscript -e 'library(flowr);setup()'
+
+RUN ln -s /root/bin/flowr /usr/bin/flowr && \
+	Rscript -e 'devtools::install_github("flow-r/ultraseq", subdir = "ultraseq")' && \
+	flowr run x=sleep_pipe platform=local execute=TRUE
+
+# Install miniconda python 2.7
+RUN wget --no-check-certificate http://repo.continuum.io/miniconda/Miniconda3-3.7.0-Linux-x86_64.sh -O /opt/miniconda.sh && \
+	bash /opt/miniconda.sh -b -p /opt/miniconda -f && \
+	rm -f /opt/miniconda.sh && \
+	echo 'export PATH=/opt/miniconda/bin:$PATH' >> /etc/profile.d/conda.sh
+
+# Install samtools, bcftools, htslib
+RUN mkdir -p /opt/samtools && cd /opt/samtools && \
+	wget --no-check-certificate https://github.com/samtools/samtools/releases/download/1.3/samtools-1.3.tar.bz2 && \
+	tar xvjf samtools-1.3.tar.bz2 && \
+	cd samtools-1.3 && make && make prefix=/opt/samtools/samtools install && \
+	echo 'pathmunge /opt/samtools/samtools/bin after' >> /etc/profile.d/ngspaths.sh && \
+	rm -rf /opt/samtools/samtools-1.3 /opt/samtools/samtools-1.3.tar.bz2
+
+RUN cd /opt/samtools && \
+	wget --no-check-certificate https://github.com/samtools/bcftools/releases/download/1.3/bcftools-1.3.tar.bz2 && \
+	tar xvjf bcftools-1.3.tar.bz2 && \
+	cd bcftools-1.3 && make && make prefix=/opt/samtools/bcftools install && \
+	echo 'pathmunge /opt/samtools/bcftools/bin after' >> /etc/profile.d/ngspaths.sh && \
+	rm -rf /opt/samtools/bcftools-1.3 /opt/samtools/bcftools-1.3.tar.bz2
+
+RUN cd /opt/samtools && \
+	wget --no-check-certificate https://github.com/samtools/htslib/releases/download/1.3/htslib-1.3.tar.bz2 && \
+	tar xvjf htslib-1.3.tar.bz2 && \
+	cd htslib-1.3 && make && make prefix=/opt/samtools/htslib install && \
+	echo 'pathmunge /opt/samtools/htslib/bin after' >> /etc/profile.d/ngspaths.sh && \
+	rm -rf /opt/samtools/htslib-1.3 /opt/samtools/htslib-1.3.tar.bz2
+
+# Install genetorrent
+
+RUN cd /opt && \
+	wget --no-check-certificate https://cghub.ucsc.edu/software/downloads/GeneTorrent/3.8.7/GeneTorrent-common-3.8.7-11.207.el6.x86_64.rpm -O /opt/gt-common.rpm && \
+	wget --no-check-certificate https://cghub.ucsc.edu/software/downloads/GeneTorrent/3.8.7/GeneTorrent-download-3.8.7-11.207.el6.x86_64.rpm -O /opt/gt-download.rpm && \
+	yum --nogpgcheck localinstall -y gt-common.rpm gt-download.rpm && \
+	rm -f gt-common.rpm gt-download.rpm
+
+# Install bwa
+
+RUN cd /opt && \
+	wget --no-check-certificate https://github.com/lh3/bwa/releases/download/v0.7.13/bwakit-0.7.13_x64-linux.tar.bz2 -O bwakit.tar.bz2 && \
+	tar xvjf bwakit.tar.bz2 && \
+	echo 'pathmunge /opt/bwa.kit after' >> /etc/profile.d/ngspaths.sh && \
+	rm -rf /opt/bwakit.tar.bz2
+
+# Install bedtools
+
+RUN cd /opt && \
+	wget --no-check-certificate https://github.com/arq5x/bedtools2/releases/download/v2.25.0/bedtools-2.25.0.tar.gz -O /opt/bedtools.tar.gz && \
+	tar xvzf bedtools.tar.gz && cd /opt/bedtools2 && \
+	make && \
+	echo 'pathmunge /opt/bedtools2/bin after' >> /etc/profile.d/ngspaths.sh && \
+	rm -rf /opt/bedtools.tar.gz
+
+# Install Oracle Java followed by GATK, Picard tools, and rJava package.
+
+RUN cd /opt && \
+	wget --no-cookies --no-check-certificate --header "Cookie: gpw_e24=http%3A%2F%2Fwww.oracle.com%2F; oraclelicense=accept-securebackup-cookie" "http://download.oracle.com/otn-pub/java/jdk/8u77-b03/jdk-8u77-linux-x64.rpm" && \
+	yum --nogpgcheck localinstall -y jdk-8u77-linux-x64.rpm && \
+	rm -f jdk-8u77-linux-x64.rpm
+
+RUN cd /opt && \
+	wget --no-cookies --no-check-certificate --header "Cookie: gpw_e24=http%3A%2F%2Fwww.oracle.com%2F; oraclelicense=accept-securebackup-cookie" "http://download.oracle.com/otn-pub/java/jdk/7u79-b15/jdk-7u79-linux-x64.rpm" && \
+	yum --nogpgcheck localinstall -y jdk-7u79-linux-x64.rpm && \
+	rm -f jdk-7u79-linux-x64.rpm && \
+	cd /usr/java && \
+	ln -s jdk1.7.0_79 old
+
+## PS: By default, updated java jdk 8 will be set at /usr/java/ and /usr/bin/java. Java 1.7 is required for mutect.
+
+RUN mkdir -p /opt/picard && \
+	wget --no-check-certificate https://github.com/broadinstitute/picard/releases/download/2.1.1/picard-tools-2.1.1.zip -O /opt/picard2.zip && \
+	unzip /opt/picard2.zip -d /opt/picard && cd /opt/picard && \
+	ln -s picard-tools-2.1.1 default && \
+	echo 'pathmunge /opt/picard/default after' >> /etc/profile.d/ngspaths.sh && \
+	rm -rf /opt/picard2.zip
+
+# Install/Update rJava R package to link to Oracle JDK 1.8 over open-jdk 1.6
+RUN R CMD javareconf && \
+	Rscript -e 'install.packages("rJava", repos = c(CRAN="http://cran.rstudio.com", DRAT="http://sahilseth.github.io/drat"))'
+
+##### IMPORTANT: LICENSE RESTRICTION #####
+RUN mkdir -p /opt/{gatk,mutect,bundle}
+## GATK and MuTect can NOT be containerized without prior approval from licensing authority, Broad Institute.
+# https://www.broadinstitute.org/gatk/blog?id=5408
+# Contact Geraldine_VdAuwera <vdauwera@broadinstitute.org> before making image public.
+
+# RUN mkdir -p /opt/gatk && \
+# 	wget --no-check-certificate http://j.mp/gatk3-5-glass -O /opt/gatk3.5.tar.bz2 && \
+# 	cd /opt/gatk && tar xvjf /opt/gatk3.5.tar.bz2 && \
+# 	echo 'pathmunge /opt/gatk after' >> /etc/profile.d/ngspaths.sh && \
+# 	rm -rf /opt/gatk3.5.tar.bz2
+
+# RUN mkdir -p /opt/mutect && \
+# 	wget --no-check-certificate http://j.mp/mutect117-glass -O /opt/mutect117.zip && \
+# 	cd /opt/mutect && unzip /opt/mutect117.zip -d /opt/mutect && \
+# 	echo 'pathmunge /opt/mutect after' >> /etc/profile.d/ngspaths.sh && \
+# 	rm -f /opt/mutect117.zip
+
+# default is mutect 1.1.7 from GATK download page.
+# mutect 1.1.4 is at http://j.mp/mutect114-glass but not used in this pipeline.
+
+# GATK and MuTect will be volume mounted at /opt/gatk/ and /opt/mutect/ respectively.
+##### END LICENSE RESTRICTION #####
+
+###### PENDING CONIFG ######
+
+# See scripts/gatk_bundle.sh script to download bundle.
+# Derived from https://github.com/BD2KGenomics/gatk-whole-genome-pipeline/blob/master/GATKsetup.sh
+
+#### Configure Users ####
+
+# RUN groupadd -g 45277 glasswriters && \
+# 	useradd -m -d /home/glasswriter -s /bin/bash -c "GLASS Writer"  -U glasswriter -u 1000 -G glasswriters && id -a glasswriter
+
+#### Confiure boot script ####
+# To set up /etc/profile.d/ and init script to allow on-the-fly change in environment variables during docker run command. Read at https://github.com/rocker-org/rocker/tree/master/rstudio
+
+###### END PENDING CONFIG ######
+
+# Cleanup
+RUN yum clean all
+
+# set workdir to flowr volumne mounted directory
+WORKDIR /scratch/docker_mutect/flowr
+
+ENV PATH /opt/miniconda/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/opt/samtools/samtools/bin:/opt/samtools/bcftools/bin:/opt/samtools/htslib/bin:/opt/bwa.kit:/opt/bedtools2/bin:/opt/picard/default:/opt/gatk:/opt/mutect
+
+ENTRYPOINT []
+CMD []
 
 ## END ##
 
-## To build image:
-# cat content of this file to /opt/Dockerfile ; then run following command as root or docker privileged user - last dot is important.
-# cd /opt && docker build -t gmapps/docker_centos_flowr:0.9.2 -t gmapps/docker_centos_flowr:latest .
-# Building image will take a while (30-60 min); upon successful exit, run following from host system to see status of example flowr run:
-# docker run gmapps/docker_centos_flowr:latest status x="~/flowr/runs"
