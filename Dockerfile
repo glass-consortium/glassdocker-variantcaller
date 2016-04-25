@@ -1,40 +1,32 @@
-## dockerfile for wrapping flowr in docker running centos 6.6 ##
+############################################################
+# Dockerfile to build docker image: dyndna/glass_mutect
+############################################################
 
-### https://github.com/flow-r/docker_centos_flowr
+# Set the base image to flowr on centos:6.6
+# Source: https://github.com/flow-r/docker_centos_flowr
+# Based on v0.9.7: https://github.com/flow-r/docker_centos_flowr/releases/tag/v0.9.7
 
-FROM centos:6.6
+FROM gmapps/docker_centos_flowr:0.9.7
 
 ## For questions, visit https:
-MAINTAINER "Samir B. Amin" <tweet:sbamin>; "Sahil Seth" <tweet:sethsa>
+MAINTAINER "Samir B. Amin" <tweet:sbamin; sbamin.com/contact>
 
-## Install and update EPEL repository ##
-### Use HTTP rather than HTTPS: To avoid error like, Cannot retrieve metalink for repository epel.
+LABEL version="0.9.7" \
+	  mode="in-house beta version" \	
+      description="docker image to run GLASS consortium variant calling pipeline" \
+      contributor1="flowr and ultraseq pipeline by Sahil Seth, tweet: sethsa" \
+      contributor2="variant calling pipeline code by Hoon Kim, tweet: wisekh6" \
+      website="http://glass-consortium.org" \
+      code="http://odin.mdacc.tmc.edu/~rverhaak/resources" \
+      contact="Dr. Roel GW Verhaak http://odin.mdacc.tmc.edu/~rverhaak/contact/ tweet:roelverhaak" \
+      NOTICE="Third party license: Use of GATK and Mutect tools are subject to approval by GATK team at the Broad Institute, Cambridge, MA, USA. This docker image can not be deployed in public prior to getting appropriate licenses from the Broad Institute to use GATK and mutect for use with GLASS consortium related analysis pipelines."
 
-RUN yum install -y epel-release && sed -i "s/mirrorlist=https/mirrorlist=http/" /etc/yum.repos.d/epel.repo
-RUN yum update -y && yum install -y \
-	sshfs rsync nano screen socat dos2unix \
-	wget curl \
-	zip unzip \
-	openssl098e openssl-devel libcurl-devel libssh2-devel \
-	java-1.8.0-openjdk-devel \
-	R
+# set workdir to flowr volumne mounted directory
+WORKDIR /scratch/docker_mutect/flowr
 
-# Install flowr & ultraseq
-RUN mkdir -p /opt && cd /opt/ && mkdir -p /usr/share/doc/R-3.2.3/html
-RUN Rscript -e 'install.packages(c("httr", "git2r", "stringr", "dplyr", "tidyr", "devtools", "flowr"), repos = c(CRAN="http://cran.rstudio.com", DRAT="http://sahilseth.github.io/drat"))' && Rscript -e 'library(flowr);setup()'
-# test flowr
-RUN ln -s /root/bin/flowr /usr/bin/flowr && flowr run x=sleep_pipe platform=local execute=TRUE
-# install ultraseq
-RUN Rscript -e 'devtools::install_github("flow-r/ultraseq", subdir = "ultraseq")'
+ENV PATH /opt/miniconda/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/opt/samtools/samtools/bin:/opt/samtools/bcftools/bin:/opt/samtools/htslib/bin:/opt/bwa.kit:/opt/bedtools2/bin:/opt/picard/default:/opt/gatk:/opt/mutect
 
-
-ENTRYPOINT ["flowr"]
-CMD ["--help"]
+ENTRYPOINT []
+CMD []
 
 ## END ##
-
-## To build image:
-# cat content of this file to /opt/Dockerfile ; then run following command as root or docker privileged user - last dot is important.
-# cd /opt && docker build -t gmapps/docker_centos_flowr:0.9.2 -t gmapps/docker_centos_flowr:latest .
-# Building image will take a while (30-60 min); upon successful exit, run following from host system to see status of example flowr run:
-# docker run gmapps/docker_centos_flowr:latest status x="~/flowr/runs"
