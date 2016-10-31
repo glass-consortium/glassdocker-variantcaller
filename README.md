@@ -1,29 +1,7 @@
-## Ultraseq Docker Image
+## GLASS Variant Calling Pipeline
 
-Docker container for running Ultraseq - a variant calling pipeline based on GATK best practices to preprocess bams followed by variant calling using MuTect. Docker image does not contain GATK and MuTect softwares as both requires individual license copies. A separate code repository will soon be made available which will use docker ultraseq image to run variant calling using following shell wrapper script:
+Updated docker image: `v1.0-b2` | Ultraseq | 23-Aug-2016
 
-Docker image is at https://hub.docker.com/r/flowrbio/ultraseq/ with current version:`0.9.7`
+Docker container for running variant calling pipeline based on GATK best practices. Docker image does not contain GATK and MuTect softwares as both requires individual license copies.
 
-### Dry run:
-
-~~~bash
-ultraseq.sh \
-          -p /scratch/foo/docktest \
-          -t tumor.bam \
-          -n normal.bam \
-          -s samplename \
-          -r DRY
-~~~
-
-### Actual run:
-
-~~~bash
-ultraseq.sh \
-          -p /scratch/foo/docktest \
-          -t tumor.bam \
-          -n normal.bam \
-          -s samplename \
-          -r GO
-~~~
-
-`/scratch/foo/docktest` is a base ultraseq directory which contains code to run pipeline as well as saves output files, including logs.
+To request Docker image and bundled sample data, please contact Dr. Roel Verhaak at roel.verhaak@jax.org
