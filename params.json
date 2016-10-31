@@ -1,6 +1,6 @@
 {
   "name": "Variant Caller Pipeline - GLASS Consortium",
   "tagline": "Docker image for variant calling pipeline",
-  "body": "## GLASS Variant Calling Pipeline\r\n\r\nUpdated docker image: `v1.0-b2` | Ultraseq | 23-Aug-2016\r\n\r\nDocker container for running variant calling pipeline based on GATK best practices. Docker image does not contain GATK and MuTect softwares as both requires individual license copies.\r\n\r\nTo request Docker image and bundled sample data, please contact Dr. Roel Verhaak at roel.verhaak@jax.org\r\n",
+  "body": "## GLASS Variant Calling Pipeline\r\n\r\nUpdated docker image: `v1.0-b2` | Ultraseq | 23-Aug-2016\r\n\r\nDocker container for running variant calling pipeline based on GATK best practices. Docker image does not contain GATK and MuTect softwares as both requires individual license copies.\r\n\r\n**Please note** that current github repository has not been updated to reflect updated docker image code. We will update github code once we get test results from all centers. Until then, request Docker image and bundled sample data by contacting Dr. Roel Verhaak at roel.verhaak@jax.org\r\n\r\nThanks!  \r\nSamir  \r\n[sbamin](https://twitter.com/sbamin)",
   "note": "Don't delete this file! It's used internally to help with page regeneration."
 }
